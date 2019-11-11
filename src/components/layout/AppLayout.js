@@ -3,12 +3,17 @@ import PropTypes from 'prop-types';
 import {observer, PropTypes as MobxPropTypes} from 'mobx-react';
 import {defineMessages, intlShape} from 'react-intl';
 import {TitleBar} from 'electron-react-titlebar';
+import injectSheet from 'react-jss';
 
 import InfoBar from '../ui/InfoBar';
 import {Component as BasicAuth} from '../../features/basicAuth';
 import {Component as ShareFranz} from '../../features/shareFranz';
 import ErrorBoundary from '../util/ErrorBoundary';
 import {isWindows} from '../../environment';
+import AnnouncementScreen from '../../features/announcements/components/AnnouncementScreen';
+import WorkspaceSwitchingIndicator from '../../features/workspaces/components/WorkspaceSwitchingIndicator';
+import { workspaceStore } from '../../features/workspaces';
+import { announcementActions } from '../../features/announcements/actions';
 
 // import globalMessages from '../../i18n/globalMessages';
 /* eslint-disable react/no-danger */
@@ -44,16 +49,30 @@ const messages = defineMessages({
   },
 });
 
-export default @observer class AppLayout extends Component {
+const styles = theme => ({
+  appContent: {
+    width: `calc(100% + ${theme.workspaces.drawer.width}px)`,
+    transition: 'transform 0.5s ease',
+    transform() {
+      return workspaceStore.isWorkspaceDrawerOpen ? 'translateX(0)' : `translateX(-${theme.workspaces.drawer.width}px)`;
+    },
+  },
+});
+
+@injectSheet(styles) @observer
+class AppLayout extends Component {
   static propTypes = {
+    classes: PropTypes.object.isRequired,
     isFullScreen: PropTypes.bool.isRequired,
     sidebar: PropTypes.element.isRequired,
+    workspacesDrawer: PropTypes.element.isRequired,
     services: PropTypes.element.isRequired,
     children: PropTypes.element,
     news: MobxPropTypes.arrayOrObservableArray.isRequired,
     // isOnline: PropTypes.bool.isRequired,
     showServicesUpdatedInfoBar: PropTypes.bool.isRequired,
     appUpdateIsDownloaded: PropTypes.bool.isRequired,
+    nextAppReleaseVersion: PropTypes.string,
     removeNewsItem: PropTypes.func.isRequired,
     reloadServicesAfterUpdate: PropTypes.func.isRequired,
     installAppUpdate: PropTypes.func.isRequired,
@@ -62,10 +81,12 @@ export default @observer class AppLayout extends Component {
     retryRequiredRequests: PropTypes.func.isRequired,
     areRequiredRequestsLoading: PropTypes.bool.isRequired,
     darkMode: PropTypes.bool.isRequired,
+    isAnnouncementVisible: PropTypes.bool.isRequired,
   };
 
   static defaultProps = {
     children: [],
+    nextAppReleaseVersion: null,
   };
 
   static contextTypes = {
@@ -74,7 +95,9 @@ export default @observer class AppLayout extends Component {
 
   render() {
     const {
+      classes,
       isFullScreen,
+      workspacesDrawer,
       sidebar,
       services,
       children,
@@ -82,6 +105,7 @@ export default @observer class AppLayout extends Component {
       news,
       showServicesUpdatedInfoBar,
       appUpdateIsDownloaded,
+      nextAppReleaseVersion,
       removeNewsItem,
       reloadServicesAfterUpdate,
       installAppUpdate,
@@ -90,6 +114,7 @@ export default @observer class AppLayout extends Component {
       retryRequiredRequests,
       areRequiredRequestsLoading,
       darkMode,
+      isAnnouncementVisible,
     } = this.props;
 
     const { intl } = this.context;
@@ -99,9 +124,11 @@ export default @observer class AppLayout extends Component {
         <div className={(darkMode ? 'theme__dark' : '')}>
           <div className="app">
             {isWindows && !isFullScreen && <TitleBar menu={window.franz.menu.template} icon="assets/images/logo.svg" />}
-            <div className="app__content">
+            <div className={`app__content ${classes.appContent}`}>
+              {workspacesDrawer}
               {sidebar}
               <div className="app__service">
+                <WorkspaceSwitchingIndicator />
                 {news.length > 0 && news.map(item => (
                   <InfoBar
                     key={item.id}
@@ -155,13 +182,18 @@ export default @observer class AppLayout extends Component {
                     <span className="mdi mdi-information" />
                     {intl.formatMessage(messages.updateAvailable)}
                     {' '}
-                    <a href="https://meetfranz.com/changelog" target="_blank">
+                    <button
+                      className="info-bar__inline-button"
+                      type="button"
+                      onClick={() => announcementActions.show({ targetVersion: nextAppReleaseVersion })}
+                    >
                       <u>{intl.formatMessage(messages.changelog)}</u>
-                    </a>
+                    </button>
                   </InfoBar>
                 )}
                 <BasicAuth />
                 <ShareFranz />
+                {isAnnouncementVisible && (<AnnouncementScreen />)}
                 {services}
               </div>
             </div>
@@ -172,3 +204,5 @@ export default @observer class AppLayout extends Component {
     );
   }
 }
+
+export default AppLayout;

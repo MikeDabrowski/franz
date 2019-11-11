@@ -98,6 +98,10 @@ const messages = defineMessages({
     id: 'settings.app.resetBackground',
     defaultMessage: '!!!Reset background',
   },
+  languageDisclaimer: {
+    id: 'settings.app.languageDisclaimer',
+    defaultMessage: '!!!Official translations are English & German. All other languages are community based translations.',
+  },
 });
 
 export default @observer class EditSettingsForm extends Component {
@@ -293,6 +297,10 @@ export default @observer class EditSettingsForm extends Component {
             {intl.formatMessage(messages.currentVersion)}
             {' '}
             {remote.app.getVersion()}
+            <p className="settings__message">
+              <span className="mdi mdi-information" />
+              {intl.formatMessage(messages.languageDisclaimer)}
+            </p>
           </form>
         </div>
       </div>

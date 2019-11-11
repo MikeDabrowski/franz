@@ -1,4 +1,9 @@
-import { computed, observable } from 'mobx';
+import {
+  computed,
+  observable,
+  reaction,
+  runInAction,
+} from 'mobx';
 
 import Store from './lib/Store';
 import CachedRequest from './lib/CachedRequest';
@@ -6,7 +11,10 @@ import CachedRequest from './lib/CachedRequest';
 import spellchecker from '../features/spellchecker';
 import serviceProxy from '../features/serviceProxy';
 import basicAuth from '../features/basicAuth';
+import workspaces from '../features/workspaces';
 import shareFranz from '../features/shareFranz';
+import announcements from '../features/announcements';
+import settingsWS from '../features/settingsWS';
 
 import { DEFAULT_FEATURES_CONFIG } from '../config';
 
@@ -15,24 +23,40 @@ export default class FeaturesStore extends Store {
 
   @observable featuresRequest = new CachedRequest(this.api.features, 'features');
 
-  setup() {
+  @observable features = Object.assign({}, DEFAULT_FEATURES_CONFIG);
+
+  async setup() {
     this.registerReactions([
+      this._updateFeatures,
       this._monitorLoginStatus.bind(this),
       this._debugFeatures.bind(this),
     ]);
+
+    await this.featuresRequest._promise;
+    setTimeout(this._setupFeatures.bind(this), 1);
+
+    // single key reaction
+    reaction(() => this.stores.user.data.isPremium, () => {
+      if (this.stores.user.isLoggedIn) {
+        this.featuresRequest.invalidate({ immediately: true });
+      }
+    });
   }
 
   @computed get anonymousFeatures() {
     return this.defaultFeaturesRequest.execute().result || DEFAULT_FEATURES_CONFIG;
   }
 
-  @computed get features() {
+  _updateFeatures = () => {
+    const features = Object.assign({}, DEFAULT_FEATURES_CONFIG);
     if (this.stores.user.isLoggedIn) {
-      return this.featuresRequest.execute().result || DEFAULT_FEATURES_CONFIG;
+      const requestResult = this.featuresRequest.execute().result;
+      Object.assign(features, requestResult);
     }
-
-    return DEFAULT_FEATURES_CONFIG;
-  }
+    runInAction('FeaturesStore::_updateFeatures', () => {
+      this.features = features;
+    });
+  };
 
   _debugFeatures() {
   }
@@ -45,10 +69,13 @@ export default class FeaturesStore extends Store {
     }
   }
 
-  _enableFeatures() {
+  _setupFeatures() {
     spellchecker(this.stores, this.actions);
     serviceProxy(this.stores, this.actions);
     basicAuth(this.stores, this.actions);
+    workspaces(this.stores, this.actions);
     shareFranz(this.stores, this.actions);
+    announcements(this.stores, this.actions);
+    settingsWS(this.stores, this.actions);
   }
 }

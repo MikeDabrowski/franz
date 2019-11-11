@@ -6,6 +6,7 @@ import Store from './lib/Store';
 import Request from './lib/Request';
 import CachedRequest from './lib/CachedRequest';
 import {matchRoute} from '../helpers/routing-helpers';
+import { workspaceStore } from '../features/workspaces';
 
 const debug = require('debug')('Franz:ServiceStore');
 
@@ -29,6 +30,7 @@ export default class ServicesStore extends Store {
 
     // Register action handlers
     this.actions.service.setActive.listen(this._setActive.bind(this));
+    this.actions.service.blurActive.listen(this._blurActive.bind(this));
     this.actions.service.setActiveNext.listen(this._setActiveNext.bind(this));
     this.actions.service.setActivePrev.listen(this._setActivePrev.bind(this));
     this.actions.service.showAddServiceInterface.listen(this._showAddServiceInterface.bind(this));
@@ -103,13 +105,16 @@ export default class ServicesStore extends Store {
   }
 
   @computed get allDisplayed() {
-    return this.stores.settings.all.app.showDisabledServices ? this.all : this.enabled;
+    const services = this.stores.settings.all.app.showDisabledServices ? this.all : this.enabled;
+    return workspaceStore.filterServicesByActiveWorkspace(services);
   }
 
   // This is just used to avoid unnecessary rerendering of resource-heavy webviews
   @computed get allDisplayedUnordered() {
+    const { showDisabledServices } = this.stores.settings.all.app;
     const services = this.allServicesRequest.execute().result || [];
-    return this.stores.settings.all.app.showDisabledServices ? services : services.filter(service => service.isEnabled);
+    const filteredServices = showDisabledServices ? services : services.filter(service => service.isEnabled);
+    return workspaceStore.filterServicesByActiveWorkspace(filteredServices);
   }
 
   @computed get filtered() {
@@ -283,6 +288,11 @@ export default class ServicesStore extends Store {
     service.isActive = true;
 
     this._focusActiveService();
+  }
+
+  @action _blurActive() {
+    if (!this.active) return;
+    this.active.isActive = false;
   }
 
   @action _setActiveNext() {

@@ -29,7 +29,7 @@ export default function initialize(stores) {
     () => stores.user.isLoggedIn,
     () => {
       setTimeout(() => {
-        if (stores.settings.stats.appStarts % 30 === 0) {
+        if (stores.settings.stats.appStarts % 50 === 0) {
           showModal();
         }
       }, ms('2s'));

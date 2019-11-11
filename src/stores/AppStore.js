@@ -64,6 +64,8 @@ export default class AppStore extends Store {
 
   @observable isFocused = true;
 
+  @observable nextAppReleaseVersion = null;
+
   dictionaries = [];
 
   constructor(...args) {
@@ -122,7 +124,7 @@ export default class AppStore extends Store {
     ipcRenderer.on('autoUpdate', (event, data) => {
       if (data.available) {
         this.updateStatus = this.updateStatusTypes.AVAILABLE;
-
+        this.nextAppReleaseVersion = data.version;
         if (isMac) {
           app.dock.bounce();
         }
